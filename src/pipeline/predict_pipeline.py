@@ -23,12 +23,27 @@ class PredictionPipeline:
         try:
             input_dir = "input_files"
             os.makedirs(input_dir, exist_ok=True)
+
+            # Log the request details
+            logging.info(f"Request content type: {self.request.content_type}")
+            logging.info(f"Request files: {self.request.files}")
+
+            if 'file' not in self.request.files:
+                raise ValueError("No file part in the request")
+
             input_file = self.request.files['file']
+
+            if input_file.filename == '':
+                raise ValueError("No selected file")
+
             input_file_path = os.path.join(input_dir, input_file.filename)
             input_file.save(input_file_path)
             return input_file_path
         except Exception as e:
+            logging.error(f"Error in save_input_file: {e}")
             raise CustomException(e, sys)
+
+
 
     def get_prediction(self, features: pd.DataFrame) -> pd.DataFrame:
         try:
@@ -39,12 +54,14 @@ class PredictionPipeline:
         except Exception as e:
             raise CustomException(e, sys)
 
+
     def get_extracted_data(self, input_file_path: str) -> pd.DataFrame:
         try:
             train = pd.read_csv(input_file_path)
             return train
         except Exception as e:
             raise CustomException(e, sys)
+
 
     def initiate_prediction(self, input_file_path):
         try:

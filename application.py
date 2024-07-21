@@ -28,8 +28,10 @@ def train_route():
 def predict():
     try:
         if request.method == "POST":
+            if 'file' not in request.files:
+                return jsonify({"error": "No file part in the request"}), 400
             data = dict(request.form.items())
-            prediction_pipeline = PredictionPipeline(data)
+            prediction_pipeline = PredictionPipeline(request)
             prediction_file_detail = prediction_pipeline.run_pipeline()
 
             lg.info("Prediction completed. Downloading prediction file.")
@@ -38,8 +40,7 @@ def predict():
                              as_attachment=True)
 
     except Exception as e:
-        lg.error(f"Error during file upload: {str(e)}")
-        return jsonify(error=str(e)), 500
+        raise CustomException(e, sys)
 
     return jsonify({"error": "Invalid request"}), 400  # For example, return a simple error response
 
