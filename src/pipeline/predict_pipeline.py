@@ -1,126 +1,73 @@
 import shutil
-import os,sys
+import os
+import sys
 import pandas as pd
 from src.logger import logging
-
 from src.exception import CustomException
-import sys
 from flask import request
-from src.utils import download_model, load_object
-
+from src.utils import load_object
 from dataclasses import dataclass
-        
-        
+
 @dataclass
 class PredictionFileDetail:
     prediction_output_dirname: str = "predictions"
-    prediction_file_name:str =  "predicted_file.csv"
-    prediction_file_path:str = os.path.join(prediction_output_dirname,prediction_file_name)
-
-
+    prediction_file_name: str = "predicted_file.csv"
+    prediction_file_path: str = os.path.join(prediction_output_dirname, prediction_file_name)
 
 class PredictionPipeline:
-    def __init__(self, request: request):
-
+    def __init__(self, request: request):  # type: ignore
         self.request = request
         self.prediction_file_detail = PredictionFileDetail()
 
-
-
-    def save_input_files(self)-> str:
-
-        """
-            Method Name :   save_input_files
-            Description :   This method saves the input file to the prediction artifacts directory. 
-            
-            Output      :   input dataframe
-            On Failure  :   Write an exception log and then raise an exception
-            
-            Version     :   1.2
-            Revisions   :   moved setup to cloud
-        """
-
+    def save_input_file(self) -> str:
         try:
-            pred_file_input_dir = "prediction_artifacts"
-            os.makedirs(pred_file_input_dir, exist_ok=True)
-
-            input_csv_file = self.request.files['file']
-            pred_file_path = os.path.join(pred_file_input_dir, input_csv_file.filename)
-            
-            
-            input_csv_file.save(pred_file_path)
-
-
-            return pred_file_path
+            input_dir = "input_files"
+            os.makedirs(input_dir, exist_ok=True)
+            input_file = self.request.files['file']
+            input_file_path = os.path.join(input_dir, input_file.filename)
+            input_file.save(input_file_path)
+            return input_file_path
         except Exception as e:
-            raise CustomException(e,sys)
+            raise CustomException(e, sys)
 
-    def predict(self, features):
-            try:
-                model_path = download_model(
-                    bucket_name="ineuron-test-bucket-123",
-                    bucket_file_name="model.pkl",
-                    dest_file_name="model.pkl",
-                )
-
-                model = load_object(file_path=model_path)
-
-                preds = model.predict(features)
-
-                return preds
-
-            except Exception as e:
-                raise CustomException(e, sys)
-        
-    def get_predicted_dataframe(self, input_dataframe_path:pd.DataFrame):
-
-        """
-            Method Name :   get_predicted_dataframe
-            Description :   this method returns the dataframw with a new column containing predictions
-
-            
-            Output      :   predicted dataframe
-            On Failure  :   Write an exception log and then raise an exception
-            
-            Version     :   1.2
-            Revisions   :   moved setup to cloud
-        """
-   
+    def get_prediction(self, features: pd.DataFrame) -> pd.DataFrame:
         try:
-
-            prediction_column_name : str = "class"
-            input_dataframe: pd.DataFrame = pd.read_csv(input_dataframe_path)
-            predictions = self.predict(input_dataframe)
-            input_dataframe[prediction_column_name] = [pred for pred in predictions]
-            target_column_mapping = {0:'neg', 1:'pos'}
-
-            input_dataframe[prediction_column_name] = input_dataframe[prediction_column_name].map(target_column_mapping)
-            
-            os.makedirs( self.prediction_file_detail.prediction_output_dirname, exist_ok= True)
-            input_dataframe.to_csv(self.prediction_file_detail.prediction_file_path, index= False)
-            logging.info("predictions completed. ")
-
-
-
+            model = load_object(file_path="artifacts/model.pkl")
+            predictions = model.predict(features)
+            features["predictions"] = predictions
+            return features
         except Exception as e:
-            raise CustomException(e, sys) from e
-        
+            raise CustomException(e, sys)
 
-        
-    def run_pipeline(self):
+    def get_extracted_data(self, input_file_path: str) -> pd.DataFrame:
         try:
-            input_csv_path = self.save_input_files()
-            self.get_predicted_dataframe(input_csv_path)
+            train = pd.read_csv(input_file_path)
+            return train
+        except Exception as e:
+            raise CustomException(e, sys)
 
+    def initiate_prediction(self, input_file_path):
+        try:
+            df = self.get_extracted_data(input_file_path=input_file_path)
+            prediction = self.get_prediction(df)
+            return prediction
+        except Exception as e:
+            raise CustomException(e, sys)
+
+    def save_prediction(self, prediction: pd.DataFrame):
+        try:
+            os.makedirs(self.prediction_file_detail.prediction_output_dirname, exist_ok=True)
+            prediction.to_csv(self.prediction_file_detail.prediction_file_path, index=False, header=True)
+        except Exception as e:
+            raise CustomException(e, sys)
+
+    def run_pipeline(self) -> PredictionFileDetail:
+        try:
+            input_file_path = self.save_input_file()
+            prediction = self.initiate_prediction(input_file_path=input_file_path)
+            self.save_prediction(prediction=prediction)
+            logging.info("Removing input file from directory")
+            os.remove(input_file_path)
             return self.prediction_file_detail
-
-
         except Exception as e:
-            raise CustomException(e,sys)
-            
-        
-
- 
-        
-
-        
+            raise CustomException(e, sys)

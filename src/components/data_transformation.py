@@ -66,16 +66,14 @@ class DataTransformation:
 
     def get_data_transformer_object(self) -> object:
         try:
-            
-
-            # define the steps for the preprocessor pipeline
-            imputer_step = ('imputer', KNNImputer(n_neighbors=3, weights='uniform',missing_values=np.nan))
+            # Define the steps for the preprocessor pipeline
+            imputer_step = ('imputer', KNNImputer(n_neighbors=3, weights='uniform', missing_values=np.nan))
             scaler_step = ('scaler', StandardScaler())
 
             preprocessor = Pipeline(
                 steps=[
-                imputer_step,
-                scaler_step
+                    imputer_step,
+                    scaler_step
                 ]
             )
             return preprocessor
@@ -83,7 +81,13 @@ class DataTransformation:
         except Exception as e:
             raise CustomException(e, sys)
 
-
+    def clean_numeric_data(self, df: pd.DataFrame) -> pd.DataFrame:
+        """
+        Method to clean non-numeric values in numeric columns.
+        """
+        for col in df.columns:
+            df[col] = pd.to_numeric(df[col], errors='coerce')  # Convert to numeric, invalid parsing will be set as NaN
+        return df
 
     def initiate_data_transformation(self, 
                                      train_file_path: str,
@@ -92,33 +96,43 @@ class DataTransformation:
             train_df = pd.read_csv(train_file_path)
             test_df = pd.read_csv(test_file_path)
 
-            target_column_name =  read_schema_config_file()['target_column']
+            target_column_name = read_schema_config_file()['target_column']
 
-            #training dataframe
+            # Clean non-numeric values
+            train_df = self.clean_numeric_data(train_df)
+            test_df = self.clean_numeric_data(test_df)
+
+            # Training dataframe
             input_feature_train_df = train_df.drop(columns=[target_column_name], axis=1)
             target_feature_train_df = train_df[target_column_name]
 
-
-            #testing dataframe
+            # Testing dataframe
             input_feature_test_df = test_df.drop(columns=[target_column_name], axis=1)
             target_feature_test_df = test_df[target_column_name]
 
+            # Get preprocessor object
             preprocessor = self.get_data_transformer_object()
 
-
+            # Transform features
             transformed_input_train_feature = preprocessor.fit_transform(input_feature_train_df)
+            transformed_input_test_feature = preprocessor.transform(input_feature_test_df)
 
-            transformed_input_test_feature =preprocessor.transform(input_feature_test_df)
+            # Reshape target features to be 2D
+            target_feature_train_df = target_feature_train_df.values.reshape(-1, 1)
+            target_feature_test_df = target_feature_test_df.values.reshape(-1, 1)
 
-            
+            # Logging shapes
+            logging.info(f"Transformed input train feature shape: {transformed_input_train_feature.shape}")
+            logging.info(f"Transformed input test feature shape: {transformed_input_test_feature.shape}")
+            logging.info(f"Target train feature shape: {target_feature_train_df.shape}")
+            logging.info(f"Target test feature shape: {target_feature_test_df.shape}")
 
-           
+            # Concatenate features and targets
+            train_arr = np.hstack([transformed_input_train_feature, target_feature_train_df])
+            test_arr = np.hstack([transformed_input_test_feature, target_feature_test_df])
 
-            train_arr = np.c_[transformed_input_train_feature, np.array(target_feature_train_df) ]
-            test_arr = np.c_[ transformed_input_test_feature, np.array(target_feature_test_df) ]
-
-            save_object(self.data_transformation_config.preprocessor_obj_file_path,
-                        obj= preprocessor)
+            # Save preprocessor object
+            save_object(self.data_transformation_config.preprocessor_obj_file_path, obj=preprocessor)
 
             return (
                 train_arr,

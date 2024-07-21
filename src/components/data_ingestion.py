@@ -1,8 +1,12 @@
 import os
 import sys
 from dataclasses import dataclass
-
 import pandas as pd
+import numpy as np
+from pymongo import MongoClient
+from pymongo.server_api import ServerApi
+
+
 from sklearn.model_selection import train_test_split
 
 from src.exception import CustomException
@@ -27,9 +31,7 @@ class DataIngestion:
         logging.info("Entered initiate_data_ingestion method of DataIngestion class")
 
         try:
-            df: pd.DataFrame = export_collection_as_dataframe(
-                db_name="ineuron", collection_name="cement"
-            )
+            df = export_collection_as_dataframe(collection_name="Cement-strength",db_name="kenil")
 
             logging.info("Exported collection as dataframe")
 
@@ -39,7 +41,7 @@ class DataIngestion:
 
             df.to_csv(self.ingestion_config.raw_data_path, index=False, header=True)
 
-            train_set, test_set = train_test_split(df, test_size=0.2, random_state=42)
+            train_set, test_set = train_test_split(df, test_size=0.25, random_state=42)
 
             train_set.to_csv(
                 self.ingestion_config.train_data_path, index=False, header=True
