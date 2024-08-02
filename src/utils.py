@@ -37,7 +37,7 @@ def read_schema_config_file() -> dict:
 
 def export_collection_as_dataframe(collection_name, db_name):
     try:
-        uri = "mongodb+srv://kenil:21212121@cluster0.azdvmbj.mongodb.net/?appName=Cluster0"
+        uri = "mongodb+srv://kenil:15151515@cluster0.azdvmbj.mongodb.net/?appName=Cluster0"
         
         # Configure SSL context
         client = MongoClient(uri,tls=True, tlsAllowInvalidCertificates=True)
@@ -49,6 +49,7 @@ def export_collection_as_dataframe(collection_name, db_name):
         documents = list(cursor)
         
         df = pd.DataFrame(documents)
+        df.drop(columns='_id', inplace=True)
         df.replace({"na": np.nan}, inplace=True)
         
         return df

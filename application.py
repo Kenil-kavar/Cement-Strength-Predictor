@@ -2,7 +2,7 @@ from flask import Flask, render_template, jsonify, request, send_file
 from src.exception import CustomException
 from src.logger import logging as lg
 import os
-import sys
+import sys,json
 
 from src.pipeline.train_pipeline import TrainPipeline
 from src.pipeline.predict_pipeline import PredictionPipeline
@@ -28,10 +28,42 @@ def train_route():
 def predict():
     try:
         if request.method == "POST":
-            if 'file' not in request.files:
-                return jsonify({"error": "No file part in the request"}), 400
-            data = dict(request.form.items())
-            prediction_pipeline = PredictionPipeline(request)
+            if not request.form:
+                return jsonify({"error": "No form data in the request"}), 400
+#  Cement (component 1)(kg in a m^3 mixture),
+# Blast Furnace Slag (component 2)(kg in a m^3 mixture),
+# Fly Ash (component 3)(kg in a m^3 mixture),
+# Water  (component 4)(kg in a m^3 mixture),
+# Superplasticizer (component 5)(kg in a m^3 mixture),
+# Coarse Aggregate  (component 6)(kg in a m^3 mixture),
+# Fine Aggregate (component 7)(kg in a m^3 mixture),
+# Age (day),
+# "Concrete compressive strength(MPa, megapascals) "           
+            Cement_component=int(request.form.get("cement"))
+            Blast = float(request.form.get('blast_furnace_slag'))
+            Fly= float(request.form.get('fly_ash'))
+            Water= float(request.form.get('water'))
+            Superplasticizer= float(request.form.get('superplasticizer'))
+            Coarse = float(request.form.get('coarse_aggregate'))
+            Fine = float(request.form.get('fine_aggregate'))
+            Age = float(request.form.get('age'))
+            
+            
+            # Extract form data
+            #data = dict(request.form)
+            #lg.info(f"Form data received: {data}")
+            data = {
+                "Cement (component 1)(kg in a m^3 mixture)": Cement_component,
+                "Blast Furnace Slag (component 2)(kg in a m^3 mixture)": Blast,
+                "Fly Ash (component 3)(kg in a m^3 mixture)": Fly,
+                "Water  (component 4)(kg in a m^3 mixture)": Water,
+                "Superplasticizer (component 5)(kg in a m^3 mixture)": Superplasticizer,
+                "Coarse Aggregate  (component 6)(kg in a m^3 mixture)": Coarse,
+                "Fine Aggregate (component 7)(kg in a m^3 mixture)": Fine,
+                "Age (day)": Age
+            
+            }
+            prediction_pipeline = PredictionPipeline(data)
             prediction_file_detail = prediction_pipeline.run_pipeline()
 
             lg.info("Prediction completed. Downloading prediction file.")

@@ -61,7 +61,7 @@ class ModelTrainer:
                         'Linear Regression': LinearRegression(),
                         'Ridge Regression': Ridge(),
                         'Lasso Regression': Lasso(),
-                        'Random Forest Regression': RandomForestRegressor(),
+                        'Random Forest Regression': RandomForestRegressor(bootstrap= True,max_depth= 30,min_samples_leaf= 1,min_samples_split= 2,n_estimators= 200),
                         'Gradient Boosting Regression':GradientBoostingRegressor(n_estimators=50,learning_rate=0.1,max_depth=3,random_state=42)
                         }
 

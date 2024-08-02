@@ -7,6 +7,7 @@ from src.exception import CustomException
 from flask import request
 from src.utils import load_object
 from dataclasses import dataclass
+import json
 
 @dataclass
 class PredictionFileDetail:
@@ -15,30 +16,24 @@ class PredictionFileDetail:
     prediction_file_path: str = os.path.join(prediction_output_dirname, prediction_file_name)
 
 class PredictionPipeline:
-    def __init__(self, request: request):  # type: ignore
-        self.request = request
+    def __init__(self, request_data):
+        self.request_data = request_data
+        
         self.prediction_file_detail = PredictionFileDetail()
 
-    def save_input_file(self) -> str:
+    def save_input_file(self, data):  # Added 'self' parameter
         try:
             input_dir = "input_files"
-            os.makedirs(input_dir, exist_ok=True)
+            file_name = "file.json"  # Consider adding a file extension
+            if not os.path.exists(input_dir):
+                os.makedirs(input_dir)
 
-            # Log the request details
-            logging.info(f"Request content type: {self.request.content_type}")
-            logging.info(f"Request files: {self.request.files}")
+            file_path = os.path.join(input_dir, file_name)
 
-            if 'file' not in self.request.files:
-                raise ValueError("No file part in the request")
+            with open(file_path, 'w') as file:
+                json.dump(data, file, indent=4)
 
-            input_file = self.request.files['file']
-
-            if input_file.filename == '':
-                raise ValueError("No selected file")
-
-            input_file_path = os.path.join(input_dir, input_file.filename)
-            input_file.save(input_file_path)
-            return input_file_path
+            return file_path
         except Exception as e:
             logging.error(f"Error in save_input_file: {e}")
             raise CustomException(e, sys)
@@ -57,7 +52,10 @@ class PredictionPipeline:
 
     def get_extracted_data(self, input_file_path: str) -> pd.DataFrame:
         try:
-            train = pd.read_csv(input_file_path)
+            with open(input_file_path, 'r') as file:
+                data1 = json.load(file)
+            print("JSON data:", data1)
+            train = pd.DataFrame(data1,index=['row_index'])
             return train
         except Exception as e:
             raise CustomException(e, sys)
@@ -80,7 +78,7 @@ class PredictionPipeline:
 
     def run_pipeline(self) -> PredictionFileDetail:
         try:
-            input_file_path = self.save_input_file()
+            input_file_path = self.save_input_file(self.request_data)
             prediction = self.initiate_prediction(input_file_path=input_file_path)
             self.save_prediction(prediction=prediction)
             logging.info("Removing input file from directory")
