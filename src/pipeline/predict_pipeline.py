@@ -12,7 +12,7 @@ import json
 @dataclass
 class PredictionFileDetail:
     prediction_output_dirname: str = "predictions"
-    prediction_file_name: str = "predicted_file.csv"
+    prediction_file_name: str = "predicted_file.json"
     prediction_file_path: str = os.path.join(prediction_output_dirname, prediction_file_name)
 
 class PredictionPipeline:
@@ -72,7 +72,7 @@ class PredictionPipeline:
     def save_prediction(self, prediction: pd.DataFrame):
         try:
             os.makedirs(self.prediction_file_detail.prediction_output_dirname, exist_ok=True)
-            prediction.to_csv(self.prediction_file_detail.prediction_file_path, index=False, header=True)
+            prediction.to_json(self.prediction_file_detail.prediction_file_path, index=2)
         except Exception as e:
             raise CustomException(e, sys)
 
